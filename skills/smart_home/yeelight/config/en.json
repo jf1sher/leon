@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../../schemas/skill-schemas/skill-config.json",
+  "actions": {
+    "lights_on": {
+      "type": "logic",
+      "utterance_samples": [
+        "Turn the [light|bulb] on",
+        "Switch on the [light|bulb]"
+      ]
+    },
+    "lights_off": {
+      "type": "logic",
+      "utterance_samples": [
+        "Turn the [light|bulb] off",
+        "Switch off the [light|bulb]"
+      ]
+    }
+  },
+  "answers": {
+    "success_on": ["Alright, the light is on."],
+    "success_off": ["Alright, the light is off"],
+    "failure": ["Sorry, the light is not responding."]
+  }
+}

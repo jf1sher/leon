@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/skill-schemas/skill.json",
+  "name": "Yeelight Control",
+  "bridge": "python",
+  "version": "1.0.0",
+  "description": "Control Yeelight smart bulbs",
+  "author": {
+    "name": "littlefish",
+    "email": "jfv391@gmail.com",
+    "url": "https://github.com/jf1sher"
+  }
+}

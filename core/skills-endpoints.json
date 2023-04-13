@@ -12,6 +12,16 @@
       "params": []
     },
     {
+      "method": "GET",
+      "route": "/api/action/smart_home/yeelight/lights_on",
+      "params": []
+    },
+    {
+      "method": "GET",
+      "route": "/api/action/smart_home/yeelight/lights_off",
+      "params": []
+    },
+    {
       "method": "POST",
       "route": "/api/action/productivity/todo_list/create_list",
       "params": ["list"],
