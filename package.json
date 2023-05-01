@@ -1,6 +1,6 @@
 {
   "name": "leon",
-  "version": "1.0.0-beta.8+dev",
+  "version": "1.0.0-beta.9+dev",
   "description": "Server, skills and web app of the Leon personal assistant",
   "author": {
     "name": "Louis Grenard",
@@ -50,7 +50,8 @@
     "generate:json-schemas": "ts-node scripts/generate/run-generate-json-schemas.js",
     "build": "npm run build:app && npm run build:server",
     "build:app": "cross-env LEON_NODE_ENV=production ts-node scripts/app/run-build-app.js",
-    "build:server": "npm run delete-dist:server && npm run train && npm run generate:skills-endpoints && tsc && resolve-tspaths && shx rm -rf server/dist/core server/dist/package.json && shx mv -f server/dist/server/src/* server/dist && shx rm -rf server/dist/server && shx mkdir -p server/dist/tmp",
+    "build:server": "npm run delete-dist:server && npm run train && npm run generate:skills-endpoints && tsc --project tsconfig.json && resolve-tspaths && shx rm -rf server/dist/core server/dist/package.json && shx mv -f server/dist/server/src/* server/dist && shx rm -rf server/dist/server && shx mkdir -p server/dist/tmp",
+    "build:nodejs-bridge": "ts-node scripts/build-binaries.js nodejs-bridge",
     "build:python-bridge": "ts-node scripts/build-binaries.js python-bridge",
     "build:tcp-server": "ts-node scripts/build-binaries.js tcp-server",
     "start:tcp-server": "cross-env PIPENV_PIPFILE=tcp_server/src/Pipfile pipenv run python tcp_server/src/main.py",
@@ -58,6 +59,7 @@
     "python-bridge": "cross-env PIPENV_PIPFILE=bridges/python/src/Pipfile pipenv run python bridges/python/src/main.py server/src/intent-object.sample.json",
     "train": "ts-node scripts/train/run-train.js",
     "prepare-release": "ts-node scripts/release/prepare-release.js",
+    "pre-release:nodejs-bridge": "ts-node scripts/release/pre-release-binaries.js nodejs-bridge",
     "pre-release:python-bridge": "ts-node scripts/release/pre-release-binaries.js python-bridge",
     "pre-release:tcp-server": "ts-node scripts/release/pre-release-binaries.js tcp-server",
     "check": "ts-node scripts/check.js",
@@ -110,6 +112,7 @@
     "@types/archiver": "5.3.2",
     "@types/cli-spinner": "0.2.1",
     "@types/fluent-ffmpeg": "2.1.20",
+    "@types/getos": "3.0.1",
     "@types/node": "18.7.13",
     "@types/node-wav": "0.0.0",
     "@typescript-eslint/eslint-plugin": "5.55.0",

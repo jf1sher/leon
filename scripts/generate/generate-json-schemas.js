@@ -20,14 +20,17 @@ import {
 
 /**
  * Generate JSON schemas
- * @param {string} categoryName 
- * @param {Map<string, Object>} schemas 
+ * @param {string} categoryName
+ * @param {Map<string, Object>} schemas
  */
 export const generateSchemas = async (categoryName, schemas) => {
   const categorySchemasPath = path.join(process.cwd(), 'schemas', categoryName)
+
   await fs.promises.mkdir(categorySchemasPath, { recursive: true })
+
   for (const [schemaName, schemaObject] of schemas.entries()) {
     const schemaPath = path.join(categorySchemasPath, `${schemaName}.json`)
+
     await fs.promises.writeFile(
       schemaPath,
       JSON.stringify(
@@ -44,6 +47,7 @@ export const generateSchemas = async (categoryName, schemas) => {
 
 export default async () => {
   LogHelper.info('Generating the JSON schemas...')
+
   await Promise.all([
     generateSchemas(
       'global-data',
@@ -65,14 +69,12 @@ export default async () => {
       'voice-config-schemas',
       new Map([
         ['amazon', amazonVoiceConfiguration],
-        [
-          'google-cloud',
-          googleCloudVoiceConfiguration
-        ],
+        ['google-cloud', googleCloudVoiceConfiguration],
         ['watson-stt', watsonVoiceConfiguration],
         ['watson-tts', watsonVoiceConfiguration]
       ])
     )
   ])
+
   LogHelper.success('JSON schemas generated')
 }

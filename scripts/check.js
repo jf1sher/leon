@@ -11,14 +11,16 @@ import axios from 'axios'
 import osName from 'os-name'
 import getos from 'getos'
 
-import { version } from '@@/package.json'
 import { LogHelper } from '@/helpers/log-helper'
 import { SystemHelper } from '@/helpers/system-helper'
 import {
+  MINIMUM_REQUIRED_RAM,
+  LEON_VERSION,
   PYTHON_BRIDGE_BIN_PATH,
   TCP_SERVER_BIN_PATH,
   TCP_SERVER_VERSION,
-  PYTHON_BRIDGE_VERSION
+  PYTHON_BRIDGE_VERSION,
+  INSTANCE_ID
 } from '@/constants'
 
 dotenv.config()
@@ -31,7 +33,6 @@ dotenv.config()
   try {
     const nodeMinRequiredVersion = '16'
     const npmMinRequiredVersion = '8'
-    const minimumRequiredRAM = 4
     const flitePath = 'bin/flite/flite'
     const coquiLanguageModelPath = 'bin/coqui/huge-vocabulary.scorer'
     const amazonPath = 'core/config/voice/amazon.json'
@@ -43,34 +44,6 @@ dotenv.config()
     const skillsResolversNlpModelPath =
       'core/data/models/leon-skills-resolvers-model.nlp'
     const mainNlpModelPath = 'core/data/models/leon-main-model.nlp'
-    const pastebinData = {
-      leonVersion: null,
-      environment: {
-        osDetails: null,
-        nodeVersion: null,
-        npmVersion: null
-      },
-      nlpModels: {
-        globalResolversModelState: null,
-        skillsResolversModelState: null,
-        mainModelState: null
-      },
-      pythonBridge: {
-        version: null,
-        executionTime: null,
-        command: null,
-        output: null,
-        error: null
-      },
-      tcpServer: {
-        version: null,
-        startTime: null,
-        command: null,
-        output: null,
-        error: null
-      },
-      report: null
-    }
     const report = {
       can_run: { title: 'Run', type: 'error', v: true },
       can_run_skill: { title: 'Run skills', type: 'error', v: true },
@@ -116,6 +89,35 @@ dotenv.config()
         v: true
       }
     }
+    let reportDataInput = {
+      leonVersion: null,
+      instanceID: INSTANCE_ID || null,
+      environment: {
+        osDetails: null,
+        nodeVersion: null,
+        npmVersion: null
+      },
+      nlpModels: {
+        globalResolversModelState: null,
+        skillsResolversModelState: null,
+        mainModelState: null
+      },
+      pythonBridge: {
+        version: null,
+        executionTime: null,
+        command: null,
+        output: null,
+        error: null
+      },
+      tcpServer: {
+        version: null,
+        startTime: null,
+        command: null,
+        output: null,
+        error: null
+      },
+      report: null
+    }
 
     LogHelper.title('Checking')
 
@@ -124,8 +126,8 @@ dotenv.config()
      */
 
     LogHelper.info('Leon version')
-    LogHelper.success(`${version}\n`)
-    pastebinData.leonVersion = version
+    LogHelper.success(`${LEON_VERSION}\n`)
+    reportDataInput.leonVersion = LEON_VERSION
 
     /**
      * Environment checking
@@ -144,10 +146,10 @@ dotenv.config()
     }
     const totalRAMInGB = SystemHelper.getTotalRAM()
 
-    if (totalRAMInGB < minimumRequiredRAM) {
+    if (Math.round(totalRAMInGB) < MINIMUM_REQUIRED_RAM) {
       report.can_run.v = false
       LogHelper.error(
-        `Total RAM: ${totalRAMInGB} GB. Leon needs at least ${minimumRequiredRAM} GB of RAM`
+        `Total RAM: ${totalRAMInGB} GB. Leon needs at least ${MINIMUM_REQUIRED_RAM} GB of RAM`
       )
     } else {
       LogHelper.success(`Total RAM: ${totalRAMInGB} GB`)
@@ -162,8 +164,8 @@ dotenv.config()
       LogHelper.success(`${JSON.stringify(osInfo)}\n`)
     }
 
-    pastebinData.environment.osDetails = osInfo
-    pastebinData.environment.totalRAMInGB = totalRAMInGB
+    reportDataInput.environment.osDetails = osInfo
+    reportDataInput.environment.totalRAMInGB = totalRAMInGB
     ;(
       await Promise.all([
         command('node --version', { shell: true }),
@@ -195,9 +197,9 @@ dotenv.config()
       } else {
         LogHelper.success(`${p.stdout}\n`)
         if (p.command.includes('node --version')) {
-          pastebinData.environment.nodeVersion = p.stdout
+          reportDataInput.environment.nodeVersion = p.stdout
         } else if (p.command.includes('npm --version')) {
-          pastebinData.environment.npmVersion = p.stdout
+          reportDataInput.environment.npmVersion = p.stdout
         }
       }
     })
@@ -207,7 +209,7 @@ dotenv.config()
      */
 
     LogHelper.success(`Python bridge version: ${PYTHON_BRIDGE_VERSION}`)
-    pastebinData.pythonBridge.version = PYTHON_BRIDGE_VERSION
+    reportDataInput.pythonBridge.version = PYTHON_BRIDGE_VERSION
     LogHelper.info('Executing a skill...')
 
     try {
@@ -224,16 +226,16 @@ dotenv.config()
       const executionEnd = Date.now()
       const executionTime = executionEnd - executionStart
       LogHelper.info(p.command)
-      pastebinData.pythonBridge.command = p.command
+      reportDataInput.pythonBridge.command = p.command
       LogHelper.success(p.stdout)
-      pastebinData.pythonBridge.output = p.stdout
+      reportDataInput.pythonBridge.output = p.stdout
       LogHelper.info(`Skill execution time: ${executionTime}ms\n`)
-      pastebinData.pythonBridge.executionTime = `${executionTime}ms`
+      reportDataInput.pythonBridge.executionTime = `${executionTime}ms`
     } catch (e) {
       LogHelper.info(e.command)
       report.can_run_skill.v = false
       LogHelper.error(`${e}\n`)
-      pastebinData.pythonBridge.error = JSON.stringify(e)
+      reportDataInput.pythonBridge.error = JSON.stringify(e)
     }
 
     /**
@@ -241,7 +243,7 @@ dotenv.config()
      */
 
     LogHelper.success(`TCP server version: ${TCP_SERVER_VERSION}`)
-    pastebinData.tcpServer.version = TCP_SERVER_VERSION
+    reportDataInput.tcpServer.version = TCP_SERVER_VERSION
 
     LogHelper.info('Starting the TCP server...')
 
@@ -253,7 +255,7 @@ dotenv.config()
     ]
 
     LogHelper.info(tcpServerCommand)
-    pastebinData.tcpServer.command = tcpServerCommand
+    reportDataInput.tcpServer.command = tcpServerCommand
 
     if (osInfo.platform === 'darwin') {
       LogHelper.info(
@@ -280,7 +282,7 @@ dotenv.config()
       if (!ignoredWarnings.some((w) => newData.includes(w))) {
         tcpServerOutput += newData
         report.can_start_tcp_server.v = false
-        pastebinData.tcpServer.error = newData
+        reportDataInput.tcpServer.error = newData
         LogHelper.error(`Cannot start the TCP server: ${newData}`)
       }
     })
@@ -292,16 +294,16 @@ dotenv.config()
 
       const error = `The TCP server timed out after ${timeout}ms`
       LogHelper.error(error)
-      pastebinData.tcpServer.error = error
+      reportDataInput.tcpServer.error = error
       report.can_start_tcp_server.v = false
     }, timeout)
 
     p.stdout.on('end', async () => {
       const tcpServerEnd = Date.now()
-      pastebinData.tcpServer.output = tcpServerOutput
-      pastebinData.tcpServer.startTime = `${tcpServerEnd - tcpServerStart}ms`
+      reportDataInput.tcpServer.output = tcpServerOutput
+      reportDataInput.tcpServer.startTime = `${tcpServerEnd - tcpServerStart}ms`
       LogHelper.info(
-        `TCP server startup time: ${pastebinData.tcpServer.startTime}\n`
+        `TCP server startup time: ${reportDataInput.tcpServer.startTime}\n`
       )
 
       /**
@@ -325,12 +327,12 @@ dotenv.config()
         LogHelper.error(
           `${state}. Try to generate a new one: "npm run train"\n`
         )
-        pastebinData.nlpModels.globalResolversModelState = state
+        reportDataInput.nlpModels.globalResolversModelState = state
       } else {
         const state = 'Found and valid'
 
         LogHelper.success(`${state}\n`)
-        pastebinData.nlpModels.globalResolversModelState = state
+        reportDataInput.nlpModels.globalResolversModelState = state
       }
 
       /**
@@ -354,12 +356,12 @@ dotenv.config()
         LogHelper.error(
           `${state}. Try to generate a new one: "npm run train"\n`
         )
-        pastebinData.nlpModels.skillsResolversModelState = state
+        reportDataInput.nlpModels.skillsResolversModelState = state
       } else {
         const state = 'Found and valid'
 
         LogHelper.success(`${state}\n`)
-        pastebinData.nlpModels.skillsResolversModelState = state
+        reportDataInput.nlpModels.skillsResolversModelState = state
       }
 
       /**
@@ -382,12 +384,12 @@ dotenv.config()
         LogHelper.error(
           `${state}. Try to generate a new one: "npm run train"\n`
         )
-        pastebinData.nlpModels.mainModelState = state
+        reportDataInput.nlpModels.mainModelState = state
       } else {
         const state = 'Found and valid'
 
         LogHelper.success(`${state}\n`)
-        pastebinData.nlpModels.mainModelState = state
+        reportDataInput.nlpModels.mainModelState = state
       }
 
       /**
@@ -525,7 +527,11 @@ dotenv.config()
         LogHelper.error('Please fix the errors above')
       }
 
-      pastebinData.report = report
+      reportDataInput.report = report
+
+      reportDataInput = JSON.parse(
+        SystemHelper.sanitizeUsername(JSON.stringify(reportDataInput))
+      )
 
       LogHelper.title('REPORT URL')
 
@@ -533,11 +539,11 @@ dotenv.config()
 
       try {
         const { data } = await axios.post('https://getleon.ai/api/report', {
-          report: pastebinData
+          report: reportDataInput
         })
-        const { data: reportData } = data
+        const { data: responseReportData } = data
 
-        LogHelper.success(`Report URL: ${reportData.reportUrl}`)
+        LogHelper.success(`Report URL: ${responseReportData.reportUrl}`)
       } catch (e) {
         LogHelper.error(`Failed to send report: ${e}`)
       }

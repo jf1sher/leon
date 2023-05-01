@@ -18,12 +18,28 @@ export const GITHUB_URL = 'https://github.com/leon-ai/leon'
  * Binaries / distribution
  */
 export const BINARIES_FOLDER_NAME = SystemHelper.getBinariesFolderName()
-export const PYTHON_BRIDGE_DIST_PATH = path.join('bridges', 'python', 'dist')
-export const TCP_SERVER_DIST_PATH = path.join('tcp_server', 'dist')
+export const NODEJS_BRIDGE_ROOT_PATH = path.join('bridges', 'nodejs')
+export const PYTHON_BRIDGE_ROOT_PATH = path.join('bridges', 'python')
+export const TCP_SERVER_ROOT_PATH = path.join('tcp_server')
 
-export const PYTHON_BRIDGE_SRC_PATH = path.join('bridges', 'python', 'src')
-export const TCP_SERVER_SRC_PATH = path.join('tcp_server', 'src')
+export const NODEJS_BRIDGE_DIST_PATH = path.join(
+  NODEJS_BRIDGE_ROOT_PATH,
+  'dist'
+)
+export const PYTHON_BRIDGE_DIST_PATH = path.join(
+  PYTHON_BRIDGE_ROOT_PATH,
+  'dist'
+)
+export const TCP_SERVER_DIST_PATH = path.join(TCP_SERVER_ROOT_PATH, 'dist')
 
+export const NODEJS_BRIDGE_SRC_PATH = path.join(NODEJS_BRIDGE_ROOT_PATH, 'src')
+export const PYTHON_BRIDGE_SRC_PATH = path.join(PYTHON_BRIDGE_ROOT_PATH, 'src')
+export const TCP_SERVER_SRC_PATH = path.join(TCP_SERVER_ROOT_PATH, 'src')
+
+const NODEJS_BRIDGE_VERSION_FILE_PATH = path.join(
+  NODEJS_BRIDGE_SRC_PATH,
+  'version.ts'
+)
 const PYTHON_BRIDGE_VERSION_FILE_PATH = path.join(
   PYTHON_BRIDGE_SRC_PATH,
   'version.py'
@@ -32,6 +48,9 @@ const TCP_SERVER_VERSION_FILE_PATH = path.join(
   TCP_SERVER_SRC_PATH,
   'version.py'
 )
+export const [, NODEJS_BRIDGE_VERSION] = fs
+  .readFileSync(NODEJS_BRIDGE_VERSION_FILE_PATH, 'utf8')
+  .split("'")
 export const [, PYTHON_BRIDGE_VERSION] = fs
   .readFileSync(PYTHON_BRIDGE_VERSION_FILE_PATH, 'utf8')
   .split("'")
@@ -39,6 +58,7 @@ export const [, TCP_SERVER_VERSION] = fs
   .readFileSync(TCP_SERVER_VERSION_FILE_PATH, 'utf8')
   .split("'")
 
+export const NODEJS_BRIDGE_BIN_NAME = 'leon-nodejs-bridge.js'
 export const PYTHON_BRIDGE_BIN_NAME = 'leon-python-bridge'
 export const TCP_SERVER_BIN_NAME = 'leon-tcp-server'
 
@@ -52,6 +72,13 @@ export const PYTHON_BRIDGE_BIN_PATH = path.join(
   BINARIES_FOLDER_NAME,
   PYTHON_BRIDGE_BIN_NAME
 )
+export const NODEJS_BRIDGE_BIN_PATH = `${process.execPath} ${path.join(
+  NODEJS_BRIDGE_DIST_PATH,
+  'bin',
+  NODEJS_BRIDGE_BIN_NAME
+)}`
+
+export const LEON_VERSION = process.env['npm_package_version']
 
 /**
  * spaCy models
@@ -91,10 +118,10 @@ export const HAS_OVER_HTTP = process.env['LEON_OVER_HTTP'] === 'true'
 export const HTTP_API_KEY = process.env['LEON_HTTP_API_KEY']
 export const HTTP_API_LANG = process.env['LEON_HTTP_API_LANG']
 
-export const HAS_LOGGER = process.env['LEON_LOGGER'] === 'true'
-
 export const TCP_SERVER_HOST = process.env['LEON_PY_TCP_SERVER_HOST']
 export const TCP_SERVER_PORT = Number(process.env['LEON_PY_TCP_SERVER_PORT'])
+
+export const IS_TELEMETRY_ENABLED = process.env['LEON_TELEMETRY'] === 'true'
 
 /**
  * Paths
@@ -108,3 +135,13 @@ export const SERVER_PATH = path.join(
   IS_PRODUCTION_ENV ? 'dist' : 'src'
 )
 export const TMP_PATH = path.join(SERVER_PATH, 'tmp')
+export const LEON_FILE_PATH = path.join('leon.json')
+
+/**
+ * Misc
+ */
+export const MINIMUM_REQUIRED_RAM = 4
+export const INSTANCE_ID = fs.existsSync(LEON_FILE_PATH)
+  ? JSON.parse(fs.readFileSync(LEON_FILE_PATH, 'utf8')).instanceID
+  : null
+export const IS_GITPOD = process.env['GITPOD_WORKSPACE_URL'] !== undefined
