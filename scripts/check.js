@@ -16,9 +16,11 @@ import { SystemHelper } from '@/helpers/system-helper'
 import {
   MINIMUM_REQUIRED_RAM,
   LEON_VERSION,
+  NODEJS_BRIDGE_BIN_PATH,
   PYTHON_BRIDGE_BIN_PATH,
   TCP_SERVER_BIN_PATH,
   TCP_SERVER_VERSION,
+  NODEJS_BRIDGE_VERSION,
   PYTHON_BRIDGE_VERSION,
   INSTANCE_ID
 } from '@/constants'
@@ -102,6 +104,13 @@ dotenv.config()
         skillsResolversModelState: null,
         mainModelState: null
       },
+      nodeJSBridge: {
+        version: null,
+        executionTime: null,
+        command: null,
+        output: null,
+        error: null
+      },
       pythonBridge: {
         version: null,
         executionTime: null,
@@ -145,14 +154,17 @@ dotenv.config()
       distro: null
     }
     const totalRAMInGB = SystemHelper.getTotalRAM()
+    const freeRAMInGB = SystemHelper.getFreeRAM()
 
-    if (Math.round(totalRAMInGB) < MINIMUM_REQUIRED_RAM) {
+    if (Math.round(freeRAMInGB) < MINIMUM_REQUIRED_RAM) {
       report.can_run.v = false
       LogHelper.error(
-        `Total RAM: ${totalRAMInGB} GB. Leon needs at least ${MINIMUM_REQUIRED_RAM} GB of RAM`
+        `Free RAM: ${freeRAMInGB} | Total RAM: ${totalRAMInGB} GB. Leon needs at least ${MINIMUM_REQUIRED_RAM} GB of RAM`
       )
     } else {
-      LogHelper.success(`Total RAM: ${totalRAMInGB} GB`)
+      LogHelper.success(
+        `Free RAM: ${freeRAMInGB} | Total RAM: ${totalRAMInGB} GB`
+      )
     }
 
     if (osInfo.platform === 'linux') {
@@ -166,6 +178,7 @@ dotenv.config()
 
     reportDataInput.environment.osDetails = osInfo
     reportDataInput.environment.totalRAMInGB = totalRAMInGB
+    reportDataInput.environment.freeRAMInGB = freeRAMInGB
     ;(
       await Promise.all([
         command('node --version', { shell: true }),
@@ -205,7 +218,41 @@ dotenv.config()
     })
 
     /**
-     * Skill execution checking
+     * Skill execution checking with Node.js bridge
+     */
+
+    LogHelper.success(`Node.js bridge version: ${NODEJS_BRIDGE_VERSION}`)
+    reportDataInput.nodeJSBridge.version = NODEJS_BRIDGE_VERSION
+    LogHelper.info('Executing a skill...')
+
+    try {
+      const executionStart = Date.now()
+      const p = await command(
+        `${NODEJS_BRIDGE_BIN_PATH} "${path.join(
+          process.cwd(),
+          'scripts',
+          'assets',
+          'nodejs-bridge-intent-object.json'
+        )}"`,
+        { shell: true }
+      )
+      const executionEnd = Date.now()
+      const executionTime = executionEnd - executionStart
+      LogHelper.info(p.command)
+      reportDataInput.nodeJSBridge.command = p.command
+      LogHelper.success(p.stdout)
+      reportDataInput.nodeJSBridge.output = p.stdout
+      LogHelper.info(`Skill execution time: ${executionTime}ms\n`)
+      reportDataInput.nodeJSBridge.executionTime = `${executionTime}ms`
+    } catch (e) {
+      LogHelper.info(e.command)
+      report.can_run_skill.v = false
+      LogHelper.error(`${e}\n`)
+      reportDataInput.nodeJSBridge.error = JSON.stringify(e)
+    }
+
+    /**
+     * Skill execution checking with Python bridge
      */
 
     LogHelper.success(`Python bridge version: ${PYTHON_BRIDGE_VERSION}`)
@@ -219,7 +266,7 @@ dotenv.config()
           process.cwd(),
           'scripts',
           'assets',
-          'intent-object.json'
+          'python-bridge-intent-object.json'
         )}"`,
         { shell: true }
       )

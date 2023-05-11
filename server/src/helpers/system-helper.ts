@@ -8,7 +8,7 @@ enum OSNames {
   Linux = 'Linux',
   Unknown = 'Unknown'
 }
-enum BinaryFolderNames {
+export enum BinaryFolderNames {
   Linux64Bit = 'linux-x86_64', // Linux 64-bit (Intel)
   LinuxARM64 = 'linux-aarch64', // Linux 64-bit (ARM)
   MacOS64Bit = 'macosx-x86_64', // Apple 64-bit (Intel)
@@ -117,6 +117,14 @@ export class SystemHelper {
    */
   public static getTotalRAM(): number {
     return Number((os.totalmem() / (1_024 * 1_024 * 1_024)).toFixed(2))
+  }
+
+  /**
+   * Get the amount of free memory (in GB) on your machine
+   * @example getFreeRAM() // 6
+   */
+  public static getFreeRAM(): number {
+    return Number((os.freemem() / (1_024 * 1_024 * 1_024)).toFixed(2))
   }
 
   /**
