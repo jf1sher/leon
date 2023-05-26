@@ -9,7 +9,11 @@ import type {
   NERCustomEntity,
   NLUResult
 } from '@/core/nlp/types'
-import type { SkillConfigSchema, SkillSchema } from '@/schemas/skill-schemas'
+import type {
+  SkillAnswerConfigSchema,
+  SkillConfigSchema,
+  SkillSchema
+} from '@/schemas/skill-schemas'
 import type {
   BrainProcessResult,
   IntentObject,
@@ -29,6 +33,8 @@ import { LogHelper } from '@/helpers/log-helper'
 import { SkillDomainHelper } from '@/helpers/skill-domain-helper'
 import { StringHelper } from '@/helpers/string-helper'
 import Synchronizer from '@/core/synchronizer'
+import type { AnswerOutput } from '@sdk/types'
+import { DateHelper } from '@/helpers/date-helper'
 
 export default class Brain {
   private static instance: Brain
@@ -43,7 +49,7 @@ export default class Brain {
   private domainFriendlyName = ''
   private skillFriendlyName = ''
   private skillOutput = ''
-  private speeches: string[] = []
+  private answers: SkillAnswerConfigSchema[] = []
   public isMuted = false // Close Leon mouth if true; e.g. over HTTP
 
   constructor() {
@@ -97,19 +103,22 @@ export default class Brain {
   /**
    * Make Leon talk
    */
-  public talk(rawSpeech: string, end = false): void {
+  public talk(answer: SkillAnswerConfigSchema, end = false): void {
     LogHelper.title('Brain')
     LogHelper.info('Talking...')
 
-    if (rawSpeech !== '') {
+    if (answer !== '') {
+      const textAnswer = typeof answer === 'string' ? answer : answer.text
+      const speechAnswer = typeof answer === 'string' ? answer : answer.speech
+
       if (HAS_TTS) {
         // Stripe HTML to a whitespace. Whitespace to let the TTS respects punctuation
-        const speech = rawSpeech.replace(/<(?:.|\n)*?>/gm, ' ')
+        const speech = speechAnswer.replace(/<(?:.|\n)*?>/gm, ' ')
 
         TTS.add(speech, end)
       }
 
-      SOCKET_SERVER.socket?.emit('answer', rawSpeech)
+      SOCKET_SERVER.socket?.emit('answer', textAnswer)
     }
   }
 
@@ -170,9 +179,12 @@ export default class Brain {
     utteranceID: string,
     slots: IntentObject['slots']
   ): IntentObject {
+    const date = DateHelper.getDateTime()
+    const dateObject = new Date(date)
+
     return {
       id: utteranceID,
-      lang: this._lang,
+      lang: this._lang, // TODO: remove once the Python bridge will be updated to use extra_context_data.lang instead
       domain: nluResult.classification.domain,
       skill: nluResult.classification.skill,
       action: nluResult.classification.action,
@@ -181,7 +193,16 @@ export default class Brain {
       entities: nluResult.entities,
       current_resolvers: nluResult.currentResolvers,
       resolvers: nluResult.resolvers,
-      slots
+      slots,
+      extra_context_data: {
+        lang: this._lang,
+        sentiment: nluResult.sentiment,
+        date: date.slice(0, 10),
+        time: date.slice(11, 19),
+        timestamp: dateObject.getTime(),
+        date_time: date,
+        week_day: dateObject.toLocaleString('default', { weekday: 'long' })
+      }
     }
   }
 
@@ -192,17 +213,24 @@ export default class Brain {
     data: Buffer
   ): Promise<Error | null> | void {
     try {
-      const obj = JSON.parse(data.toString())
+      const obj = JSON.parse(data.toString()) as AnswerOutput
 
       if (typeof obj === 'object') {
         LogHelper.title(`${this.skillFriendlyName} skill (on data)`)
         LogHelper.info(data.toString())
 
-        const speech = obj.output.speech.toString()
-        if (!this.isMuted) {
-          this.talk(speech)
+        if (obj.output.widget) {
+          SOCKET_SERVER.socket?.emit('widget', obj.output.widget)
         }
-        this.speeches.push(speech)
+
+        // TODO: remove this condition when Python skills outputs are updated (replace "speech" with "answer")
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        const { answer, speech } = obj.output
+        if (!this.isMuted) {
+          this.talk(answer || speech)
+        }
+        this.answers.push(answer)
         this.skillOutput = data.toString()
 
         return Promise.resolve(null)
@@ -227,11 +255,13 @@ export default class Brain {
       '%skill_name%': this.skillFriendlyName,
       '%domain_name%': this.domainFriendlyName
     })}!`
+
     if (!this.isMuted) {
       this.talk(speech)
       SOCKET_SERVER.socket?.emit('is-typing', false)
     }
-    this.speeches.push(speech)
+
+    this.answers.push(speech)
   }
 
   /**
@@ -476,6 +506,8 @@ export default class Brain {
             await SkillDomainHelper.getSkillConfig(configFilePath, this._lang)
           const utteranceHasEntities = nluResult.entities.length > 0
           const { answers: rawAnswers } = nluResult
+          // TODO: handle dialog action skill speech vs text
+          // let answers = rawAnswers as [{ answer: SkillAnswerConfigSchema }]
           let answers = rawAnswers
           let answer: string | undefined = ''
 
@@ -501,6 +533,8 @@ export default class Brain {
                 actions[nluResult.classification.action]?.unknown_answers
 
               if (unknownAnswers) {
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
                 answer =
                   unknownAnswers[
                     Math.floor(Math.random() * unknownAnswers.length)
